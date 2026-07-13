@@ -1,26 +1,32 @@
-import { useState } from 'react';
-import type { Project } from '../api';
+import { useEffect, useState } from 'react';
+import { api, type Project } from '../api';
 
 export interface ProjectListProps {
   projects: Project[];
   selected: string | null;
   onSelect: (name: string) => void;
-  onCreate: (name: string, targetDir: string) => Promise<void>;
+  onCreate: (name: string, targetDir?: string) => Promise<void>;
 }
 
 export function ProjectList({ projects, selected, onSelect, onCreate }: ProjectListProps) {
   const [name, setName] = useState('');
+  const [customLocation, setCustomLocation] = useState(false);
   const [targetDir, setTargetDir] = useState('');
+  const [defaultRoot, setDefaultRoot] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  useEffect(() => {
+    api.getConfig().then((c) => setDefaultRoot(c.defaultProjectsRoot)).catch(() => {});
+  }, []);
+
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name.trim() || !targetDir.trim()) return;
+    if (!name.trim()) return;
     setCreating(true);
     setError(null);
     try {
-      await onCreate(name.trim(), targetDir.trim());
+      await onCreate(name.trim(), customLocation ? targetDir.trim() : undefined);
       setName('');
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -55,12 +61,19 @@ export function ProjectList({ projects, selected, onSelect, onCreate }: ProjectL
           onChange={(e) => setName(e.target.value)}
           disabled={creating}
         />
-        <input
-          placeholder="/absolute/path/to/parent-dir"
-          value={targetDir}
-          onChange={(e) => setTargetDir(e.target.value)}
-          disabled={creating}
-        />
+        {customLocation ? (
+          <input
+            placeholder="/absolute/path/to/parent-dir"
+            value={targetDir}
+            onChange={(e) => setTargetDir(e.target.value)}
+            disabled={creating}
+          />
+        ) : (
+          defaultRoot && <div className="hint">Will be created in {defaultRoot}</div>
+        )}
+        <button type="button" className="link" onClick={() => setCustomLocation((v) => !v)}>
+          {customLocation ? 'Use default location' : 'Use a custom location'}
+        </button>
         <button type="submit" disabled={creating}>
           {creating ? 'Creating…' : 'Create'}
         </button>

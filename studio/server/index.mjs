@@ -2,7 +2,7 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { spawn } from 'node:child_process';
-import { scaffoldProject } from './scaffold.mjs';
+import { scaffoldProject, DEFAULT_PROJECTS_ROOT } from './scaffold.mjs';
 import { listProjects, addProject, findProject } from './registry.mjs';
 
 const PORT = 4310;
@@ -67,7 +67,15 @@ const server = createServer(async (req, res) => {
     const url = new URL(req.url, `http://localhost:${PORT}`);
     const parts = url.pathname.split('/').filter(Boolean); // e.g. ['api', 'projects', 'name', 'timeline']
 
-    if (parts[0] !== 'api' || parts[1] !== 'projects') {
+    if (parts[0] !== 'api') {
+      return send(res, 404, { error: 'not found' });
+    }
+
+    if (parts[1] === 'config' && parts.length === 2 && req.method === 'GET') {
+      return send(res, 200, { defaultProjectsRoot: DEFAULT_PROJECTS_ROOT });
+    }
+
+    if (parts[1] !== 'projects') {
       return send(res, 404, { error: 'not found' });
     }
 

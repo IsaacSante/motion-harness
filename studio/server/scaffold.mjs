@@ -5,9 +5,15 @@ import { mkdirSync, cpSync, readFileSync, writeFileSync, existsSync } from 'node
 import { join, relative } from 'node:path';
 import { execSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
+import { homedir } from 'node:os';
 
 const HARNESS_ROOT = fileURLToPath(new URL('../..', import.meta.url));
 const TEMPLATE_DIR = join(HARNESS_ROOT, 'template');
+
+// Where new projects land when the caller doesn't specify a directory —
+// override with MOTION_HARNESS_PROJECTS_DIR if you want them somewhere else.
+export const DEFAULT_PROJECTS_ROOT =
+  process.env.MOTION_HARNESS_PROJECTS_DIR || join(homedir(), 'motion-harness-projects');
 
 function replaceInFile(path, replacements) {
   let contents = readFileSync(path, 'utf8');
@@ -18,15 +24,16 @@ function replaceInFile(path, replacements) {
 }
 
 export function scaffoldProject({ name, targetDir }) {
-  if (!name || !targetDir) {
-    throw new Error('scaffoldProject requires both name and targetDir');
+  if (!name) {
+    throw new Error('scaffoldProject requires a name');
   }
-  const projectPath = join(targetDir, name);
+  const resolvedTargetDir = targetDir || DEFAULT_PROJECTS_ROOT;
+  const projectPath = join(resolvedTargetDir, name);
   if (existsSync(projectPath)) {
     throw new Error(`${projectPath} already exists`);
   }
 
-  mkdirSync(targetDir, { recursive: true });
+  mkdirSync(resolvedTargetDir, { recursive: true });
   cpSync(TEMPLATE_DIR, projectPath, { recursive: true });
 
   const kitRelPath = relative(projectPath, HARNESS_ROOT);

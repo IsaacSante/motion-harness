@@ -31,7 +31,7 @@ export function App() {
     setDirty(false);
   };
 
-  const createProject = async (name: string, targetDir: string) => {
+  const createProject = async (name: string, targetDir?: string) => {
     const updated = await api.createProject(name, targetDir);
     setProjects(updated);
     await selectProject(name);

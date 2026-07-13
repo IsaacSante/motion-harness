@@ -86,6 +86,27 @@ body {
   gap: 8px;
 }
 
+.hint {
+  font-size: 0.7rem;
+  color: #6a6b72;
+  word-break: break-all;
+}
+
+button.link {
+  background: none;
+  border: none;
+  color: #8a8ff0;
+  padding: 0;
+  text-align: left;
+  font-size: 0.75rem;
+  cursor: pointer;
+}
+
+button.link:hover {
+  text-decoration: underline;
+  background: none;
+}
+
 .new-project-form h3 {
   font-size: 0.75rem;
   text-transform: uppercase;

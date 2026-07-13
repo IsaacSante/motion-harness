@@ -23,9 +23,11 @@ async function json<T>(res: Response): Promise<T> {
 }
 
 export const api = {
+  getConfig: (): Promise<{ defaultProjectsRoot: string }> => fetch('/api/config').then((r) => json(r)),
+
   listProjects: (): Promise<Project[]> => fetch('/api/projects').then((r) => json(r)),
 
-  createProject: (name: string, targetDir: string): Promise<Project[]> =>
+  createProject: (name: string, targetDir?: string): Promise<Project[]> =>
     fetch('/api/projects', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
