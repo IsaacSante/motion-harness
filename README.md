@@ -43,13 +43,34 @@ Nothing about liquid glass, a specific palette, typography, or any other
 visual identity. That's brief-specific and lives in the *consuming* project's
 own tokens file, passed into the kit's primitives as plain parameters.
 
+## Starting a new project
+
+Projects depend on this kit as a local package (`file:` dependency, resolved
+as a symlink) rather than forking its source — the kit stays a single shared
+copy, project data (tokens, scenes, timeline) stays in the project's own repo.
+
+```bash
+npm run create-project -- <name> <parent-dir>
+```
+
+This scaffolds `template/` into `<parent-dir>/<name>`, wires up the
+`motion-harness` dependency with the correct relative path, and runs
+`npm install` + `git init` in it. See `template/CLAUDE.md` for the rules a
+new project's own agent should follow (most importantly: never edit
+`node_modules/motion-harness` — that's the shared kit, not project code).
+
+The same scaffolding is exposed through a visual UI — see `studio/README.md`
+— which also gives each project a timeline (its scenes as reorderable clips)
+and a live preview.
+
 ## Commands
 
 ```bash
 npm install
-npm run dev        # demo at demo/ — one scene proving the pieces compose
+npm run dev              # demo at demo/ — one scene proving the pieces compose
 npm run typecheck
-npm run catalog     # regenerate src/catalog/catalog.json
+npm run catalog           # regenerate src/catalog/catalog.json
+npm run create-project    # scaffold a new project from template/
 ```
 
 See `docs/AGENT.md` for the rules an agent should follow when extending this

@@ -1,0 +1,5 @@
+{
+  "clips": [
+    { "id": "clip-1", "scene": "example", "duration": 4, "config": {} }
+  ]
+}

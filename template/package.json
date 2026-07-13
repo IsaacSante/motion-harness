@@ -1,19 +1,16 @@
 {
-  "name": "motion-harness",
+  "name": "__PROJECT_NAME__",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "main": "src/index.ts",
-  "types": "src/index.ts",
   "scripts": {
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
-    "typecheck": "tsc --noEmit",
-    "catalog": "node scripts/generate-catalog.mjs",
-    "create-project": "node scripts/create-project.mjs"
+    "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "gsap": "^3.12.5"
+    "gsap": "^3.12.5",
+    "motion-harness": "__KIT_FILE_DEP__"
   },
   "devDependencies": {
     "typescript": "^5.6.0",
