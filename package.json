@@ -10,7 +10,8 @@
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
     "catalog": "node scripts/generate-catalog.mjs",
-    "create-project": "node scripts/create-project.mjs"
+    "create-project": "node scripts/create-project.mjs",
+    "agent": "node agent/cli.mjs"
   },
   "dependencies": {
     "gsap": "^3.12.5"
