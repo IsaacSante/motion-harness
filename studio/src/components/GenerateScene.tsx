@@ -5,7 +5,7 @@ export interface GenerateSceneProps {
   project: string;
   /** The currently selected clip's scene name, if any — prefills the form for a "regenerate this clip" flow. */
   selectedClipScene: string | null;
-  onGenerated: () => void;
+  onGenerated: (sceneName: string) => void;
 }
 
 export function GenerateScene({ project, selectedClipScene, onGenerated }: GenerateSceneProps) {
@@ -31,13 +31,12 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
       const result = await api.generateScene(project, sceneName.trim(), instruction.trim(), overwrite);
       if (result.success) {
         setStatus('success');
-        setMessage(
-          result.warning
-            ? `Generated after ${result.attempts} attempt(s). ${result.warning}`
-            : `Generated and typechecked cleanly after ${result.attempts} attempt(s).`,
-        );
+        const base = result.warning
+          ? `Generated after ${result.attempts} attempt(s). ${result.warning}`
+          : `Generated and typechecked cleanly after ${result.attempts} attempt(s).`;
+        setMessage(`${base} Added to the timeline — click Save, then Preview to see it.`);
         setInstruction('');
-        onGenerated();
+        onGenerated(result.sceneName);
       } else {
         setStatus('error');
         setMessage(`Failed after ${result.attempts} attempt(s):\n${result.errors ?? ''}`);
@@ -88,8 +87,9 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
       {status === 'error' && <pre className="error">{message}</pre>}
       {status !== 'loading' && (
         <div className="hint">
-          New scenes don't attach to a clip automatically — pick them from this clip's
-          Scene dropdown above once generated.
+          A brand-new scene name gets added to the timeline as a new clip automatically.
+          Regenerating an existing clip's scene (name pre-filled, overwrite checked) just
+          replaces its code in place — nothing to reattach.
         </div>
       )}
     </div>

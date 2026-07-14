@@ -143,8 +143,15 @@ export function App() {
                 <GenerateScene
                   project={selectedProject}
                   selectedClipScene={selectedClip?.scene ?? null}
-                  onGenerated={() => {
+                  onGenerated={(sceneName) => {
                     api.listScenes(selectedProject).then(setScenes);
+                    const alreadyOnTimeline = timeline.clips.some((c) => c.scene === sceneName);
+                    if (!alreadyOnTimeline) {
+                      mutateClips((clips) => [
+                        ...clips,
+                        { id: newClipId(), scene: sceneName, duration: 3, config: {} },
+                      ]);
+                    }
                   }}
                 />
               </div>
