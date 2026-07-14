@@ -20,6 +20,7 @@ export interface GenerateResult {
   factoryName: string;
   attempts: number;
   errors?: string;
+  warning?: string;
 }
 
 async function json<T>(res: Response): Promise<T> {

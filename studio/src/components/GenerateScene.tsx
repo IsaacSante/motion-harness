@@ -31,7 +31,11 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
       const result = await api.generateScene(project, sceneName.trim(), instruction.trim(), overwrite);
       if (result.success) {
         setStatus('success');
-        setMessage(`Generated and typechecked cleanly after ${result.attempts} attempt(s).`);
+        setMessage(
+          result.warning
+            ? `Generated after ${result.attempts} attempt(s). ${result.warning}`
+            : `Generated and typechecked cleanly after ${result.attempts} attempt(s).`,
+        );
         setInstruction('');
         onGenerated();
       } else {

@@ -27,7 +27,7 @@ function runTypecheck(projectPath) {
 // on "does this line mention the file" keeps the header and throws away
 // every continuation line — the model gets "no overload matches" with zero
 // explanation of why. Group into whole blocks first, then filter blocks.
-function relevantDiagnostics(output, fileNames) {
+function groupDiagnosticBlocks(output) {
   const lines = output.split('\n');
   const blocks = [];
   let current = null;
@@ -40,10 +40,11 @@ function relevantDiagnostics(output, fileNames) {
     }
   }
   if (current) blocks.push(current);
+  return blocks;
+}
 
-  const matched = blocks.filter((block) => fileNames.some((f) => block[0].includes(f)));
-  const chosen = matched.length ? matched : blocks;
-  return chosen.map((b) => b.join('\n')).join('\n\n') || output;
+function blocksForFiles(blocks, fileNames) {
+  return blocks.filter((block) => fileNames.some((f) => block[0].includes(f)));
 }
 
 /**
@@ -111,8 +112,27 @@ export async function generateScene({
       return { success: true, sceneName, factoryName, code, attempts };
     }
 
-    lastErrors = relevantDiagnostics(result.output, [`scenes/${sceneName}.ts`, 'main.ts']);
+    // Typecheck runs across the whole project, so a pre-existing broken
+    // file elsewhere (e.g. left over from an earlier failed generation)
+    // would otherwise fail every future generation forever, regardless of
+    // whether what we just wrote is actually fine. Only treat this as a
+    // real failure if a diagnostic actually points at our own files.
+    const ownFiles = [`scenes/${sceneName}.ts`, 'main.ts'];
+    const allBlocks = groupDiagnosticBlocks(result.output);
+    const ownBlocks = blocksForFiles(allBlocks, ownFiles);
 
+    if (ownBlocks.length === 0) {
+      return {
+        success: true,
+        sceneName,
+        factoryName,
+        code,
+        attempts,
+        warning: 'This scene typechecks clean, but the project has unrelated pre-existing typecheck errors elsewhere.',
+      };
+    }
+
+    lastErrors = ownBlocks.map((b) => b.join('\n')).join('\n\n');
     messages.push({ role: 'user', content: buildRepairMessage(lastErrors) });
   }
 
