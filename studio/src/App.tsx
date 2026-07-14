@@ -8,6 +8,16 @@ import { ScaledPreview } from './components/ScaledPreview';
 
 const newClipId = () => `clip-${Math.random().toString(36).slice(2, 9)}`;
 
+// The dev server plays the whole timeline by default; passing ?scene=<name>
+// switches it to solo-scene mode (see template/src/main.ts) so the preview
+// shows exactly the clip that's selected instead of the full sequence.
+const soloScenePreviewUrl = (base: string, sceneName: string) => {
+  const [path, query] = base.split('?');
+  const params = new URLSearchParams(query);
+  params.set('scene', sceneName);
+  return `${path}?${params.toString()}`;
+};
+
 export function App() {
   const [projects, setProjects] = useState<Project[]>([]);
   const [selectedProject, setSelectedProject] = useState<string | null>(null);
@@ -121,6 +131,20 @@ export function App() {
 
   const selectedClip = timeline?.clips.find((c) => c.id === selectedClipId) ?? null;
 
+  // Selecting a clip always plays exactly that scene; nothing selected falls
+  // back to the full timeline sequence.
+  const previewSrc = previewUrl
+    ? (selectedClip ? soloScenePreviewUrl(previewUrl, selectedClip.scene) : previewUrl)
+    : null;
+
+  const selectClip = (id: string) => {
+    setSelectedClipId(id);
+    // Force a remount even if the new selection resolves to the same URL as
+    // before (e.g. two clips sharing a scene) — a click should always
+    // (re)start playback, not just when the src string happens to change.
+    setPreviewReloadToken((t) => t + 1);
+  };
+
   return (
     <div className="app">
       <ProjectList
@@ -157,15 +181,15 @@ export function App() {
             <Timeline
               clips={timeline.clips}
               selectedClipId={selectedClipId}
-              onSelect={setSelectedClipId}
+              onSelect={selectClip}
               onReorder={reorder}
               onAddClip={addClip}
             />
 
             <div className="workspace">
               <div className="preview-pane">
-                {previewUrl ? (
-                  <ScaledPreview url={previewUrl} reloadToken={previewReloadToken} />
+                {previewSrc ? (
+                  <ScaledPreview url={previewSrc} reloadToken={previewReloadToken} />
                 ) : (
                   <div className="empty">{previewLoading ? 'Starting preview…' : 'Preview unavailable'}</div>
                 )}
@@ -177,8 +201,13 @@ export function App() {
                   selectedClipScene={selectedClip?.scene ?? null}
                   onGenerated={(sceneName) => {
                     api.listScenes(selectedProject).then(setScenes);
-                    const alreadyOnTimeline = timeline.clips.some((c) => c.scene === sceneName);
-                    if (alreadyOnTimeline) return;
+                    const existing = timeline.clips.find((c) => c.scene === sceneName);
+                    if (existing) {
+                      // Already on the timeline (e.g. regenerated in place) —
+                      // just select+play it, nothing to save.
+                      selectClip(existing.id);
+                      return;
+                    }
                     // Auto-attach must also auto-save: the live preview reads
                     // timeline.json off disk, not React state. Leaving this
                     // as a dirty in-memory edit meant "generate a scene" and
@@ -186,12 +215,13 @@ export function App() {
                     // you the first one silently did nothing on its own —
                     // the preview just kept showing whatever was on disk
                     // before.
-                    const next = { ...timeline, clips: [...timeline.clips, { id: newClipId(), scene: sceneName, duration: 3, config: {} }] };
+                    const newClip = { id: newClipId(), scene: sceneName, duration: 3, config: {} };
+                    const next = { ...timeline, clips: [...timeline.clips, newClip] };
                     setTimeline(next);
+                    selectClip(newClip.id);
                     api.saveTimeline(selectedProject, next).then(() => {
                       setDirty(false);
                       setStatus('Saved — new clip attached');
-                      setPreviewReloadToken((t) => t + 1);
                       setTimeout(() => setStatus(null), 1500);
                     });
                   }}
