@@ -67,6 +67,17 @@ export async function captureScenePreview({ previewUrl, sceneName }) {
   try {
     const ctx = await browser.newContext({ viewport: { width: CANONICAL_WIDTH, height: CANONICAL_HEIGHT } });
     const page = await ctx.newPage();
+    // An uncaught exception during enter() (e.g. a config field the code
+    // assumed was present but wasn't) aborts the scene before anything
+    // renders — from a screenshot alone that's indistinguishable from
+    // "correctly renders as blank", so the vision judge has no way to name
+    // the actual cause. Collecting these lets the caller short-circuit
+    // straight to the real reason instead of asking the model to guess from
+    // a blank frame. Only `pageerror` (uncaught JS exceptions), not
+    // console.error — the latter is too noisy (favicon 404s, benign
+    // warnings) to trust as a signal.
+    const pageErrors = [];
+    page.on('pageerror', (err) => pageErrors.push(err.message));
     await page.goto(`${previewUrl}/?scene=${encodeURIComponent(sceneName)}`, { waitUntil: 'load' });
     await page.evaluate(() => document.fonts.ready);
 
@@ -80,7 +91,7 @@ export async function captureScenePreview({ previewUrl, sceneName }) {
     }
 
     const composite = await compositeWithTimecodes(page, frames);
-    return composite;
+    return { screenshotBase64: composite, pageErrors };
   } finally {
     await browser.close();
   }
@@ -97,11 +108,16 @@ export async function judgeScreenshot({ apiKey, model, instruction, sceneName, s
 
 "${instruction}"
 
-Judge it for two things only:
-1. Is everything visible fully inside the frame at some point across the 3 frames — nothing permanently cut off or stuck off-screen the whole time?
-2. Does it roughly match what the instruction asked for?
+Judge it for two things only, as a low bar for "does this basically work" — NOT a design review:
+1. Is there clearly-visible content (actual text/graphics, not just an empty background) somewhere in the frame at some point across the 3 frames?
+2. Does the general subject match what the instruction asked for?
 
-Some scenes have a deliberately slow-building intro (e.g. a scrolling crawl that starts below the frame and takes many seconds to scroll into view) — that's exactly why you're shown progress over time instead of one instant. If the frames show things moving toward/into the frame (comparing t=1s to t=5s to t=10s), that's working as intended, not an issue. Only flag ISSUE if, across all 3 frames, something looks permanently wrong: content stuck in the same broken position with no movement toward the frame, elements cut off at an edge in every frame, or a result that contradicts the instruction (wrong subject, wrong layout entirely).
+Be LENIENT — this is a pass/fail gate that runs BEFORE a separate, dedicated design-quality pass; spacing, alignment, composition, polish, and "does this look professionally designed" are judged there, not here, so don't fail a scene for those. In particular, do NOT flag ISSUE for:
+- Stylistic distortion, skew, blur, or foreshortening that's clearly an intentional effect — e.g. a 3D perspective crawl is SUPPOSED to warp and shrink text toward a vanishing point; that's the effect working correctly, not a defect. Only flag if it makes content entirely illegible at every frame with no improvement over time.
+- Not precisely matching a specific well-known reference's exact layout, timing, or typography — the brief only needs the general idea (a brief mentioning "Star Wars intro" just needs to be a receding/scrolling title crawl, not a pixel-accurate recreation of the real film's exact framing).
+- Minor overlap, tight spacing, or an element running close to an edge — only flag if content is majority off-frame or fully cut off in EVERY frame, not just close to it.
+
+Some scenes have a deliberately slow-building intro (e.g. a scrolling crawl that starts below the frame and takes many seconds to scroll into view), or a deliberate beat of black between sections — that's exactly why you're shown progress over time instead of one instant. If the frames show things moving toward/into the frame (comparing t=1s to t=5s to t=10s), or a later frame has content even if an earlier/middle one doesn't, that's working as intended, not an issue. Only flag ISSUE if, across all 3 frames, something looks permanently and structurally broken: every single frame is entirely blank with no content anywhere, content stuck in the same broken position with no movement toward the frame ever, content majority off-screen in every frame, or the result contradicts the instruction's actual subject entirely (e.g. asked for a title card, got an unrelated chart).
 
 Reply with a first line that is EXACTLY "OK" or "ISSUE" and nothing else on that line. If ISSUE, follow with 1-3 short sentences explaining what's wrong, specific enough that a developer could fix it (e.g. "the title text is rendered ~700px to the right of the visible frame in all 3 frames, mostly off-screen").`,
         },

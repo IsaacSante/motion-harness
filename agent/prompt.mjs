@@ -53,6 +53,13 @@ ${ctx.exampleScene}
   reasoning about this specific brief.
 - Export exactly one factory function named EXACTLY \`${factoryName}\`, shaped like:
   \`export const ${factoryName} = (config: SomeConfig = {}): Scene<SomeConfig> => { ... }\`
+- The runtime ALWAYS calls this factory with an explicit config object (e.g. \`{}\`), NEVER
+  \`undefined\` — so a top-level default like \`config: SomeConfig = { lines: [] }\` never actually
+  applies; JS only falls back to it when the argument itself is \`undefined\`, not when it's an
+  object missing that field. If any field's absence would break the scene (e.g. \`config.lines.length\`
+  on a missing \`lines\`), default it individually inside the function body instead, e.g.
+  \`const lines = config.lines ?? ['fallback text'];\` — never assume a field exists just because
+  the type or the top-level default says it should.
 - Use \`defineBeats\` for any timing/duration decisions instead of inline magic numbers.
 - Use \`createLayeredElement\` instead of hand-summing transforms whenever an element has
   more than one independent thing driving its motion (entry + idle drift + exit, etc). It must
@@ -62,6 +69,15 @@ ${ctx.exampleScene}
   but visibly broken, so read that entry, don't guess).
 - Always tear down in exit(): kill every tween, remove every DOM node you created. Use
   \`createTeardownBag\` to track them instead of parallel arrays.
+- When animating MULTIPLE elements' entrances, set every element's initial \`layers.entry\` state
+  (\`Object.assign\` + \`apply()\`) for ALL of them BEFORE starting any of their tweens, and never
+  \`await\` one element's entry tween before starting the next one's inside the same loop — an
+  element whose turn hasn't come yet still has its layers at their zeroed defaults with \`apply()\`
+  never called, so it renders untransformed at the raw DOM position (\`position: absolute; left:
+  0; top: 0\`) instead of hidden/off-place at its intended slot — which looks exactly like every
+  not-yet-animated element piled on top of each other in the corner. Stagger multiple elements
+  with each tween's own \`delay\` (e.g. \`delay: i * 0.1\`), firing every tween up front and tracking
+  each with the teardown bag, not by awaiting them one at a time.
 - Everything tagged "motif" above is a FACTORY FUNCTION you must CALL, e.g. \`const spec =
   riseFade();\` — never pass the bare function itself anywhere gsap expects an ease, a number,
   or a style value, that's a type error every time. \`floatDrift\`'s return shape is DIFFERENT

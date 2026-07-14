@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { buildContext } from './context.mjs';
@@ -7,6 +7,7 @@ import { extractCode } from './extract-code.mjs';
 import { extractEdits, applyEdits } from './apply-edits.mjs';
 import { registerScene } from './registry-patch.mjs';
 import { chatCompletion } from './cerebras.mjs';
+import { isPlaceholderTokens, derivePaletteTokens } from './tokens.mjs';
 import { captureScenePreview, judgeScreenshot, judgeDesignQuality } from './screenshot.mjs';
 import { startDevServerOnAvailablePort, stopDevServer } from '../scripts/lib/dev-server.mjs';
 
@@ -68,10 +69,23 @@ function blocksForFiles(blocks, fileNames) {
 // server didn't boot, vision call failed, the model doesn't actually
 // support image input despite the assumption it does — is swallowed and
 // reported as a skipped check, not surfaced as a generation bug.
+//
+// An uncaught JS exception during enter() renders as an indistinguishable
+// blank/stuck frame to the vision judge, which then has to guess at a
+// layout/timing explanation for what's actually a crash — burning repair
+// attempts on the wrong fix. captureScenePreview surfaces these separately,
+// so a page error short-circuits straight to the real cause instead.
+function buildPageErrorExplanation(pageErrors) {
+  return `Uncaught JavaScript error while rendering — this is why nothing shows up, not a layout/timing issue: ${pageErrors.join(' | ')}`;
+}
+
 async function runVisualCheck({ projectPath, sceneName, instruction, apiKey, model, getDevServer }) {
   try {
     const devServer = await getDevServer();
-    const screenshotBase64 = await captureScenePreview({ previewUrl: devServer.url, sceneName });
+    const { screenshotBase64, pageErrors } = await captureScenePreview({ previewUrl: devServer.url, sceneName });
+    if (pageErrors.length > 0) {
+      return { ok: false, explanation: buildPageErrorExplanation(pageErrors), screenshotBase64 };
+    }
     const verdict = await judgeScreenshot({ apiKey, model, instruction, sceneName, screenshotBase64 });
     return { ...verdict, screenshotBase64 };
   } catch (err) {
@@ -141,8 +155,11 @@ async function runDesignPasses({
     let newScreenshot;
     try {
       const devServer = await getDevServer();
-      newScreenshot = await captureScenePreview({ previewUrl: devServer.url, sceneName });
-      correctnessVerdict = await judgeScreenshot({ apiKey, model, instruction, sceneName, screenshotBase64: newScreenshot });
+      const captured = await captureScenePreview({ previewUrl: devServer.url, sceneName });
+      newScreenshot = captured.screenshotBase64;
+      correctnessVerdict = captured.pageErrors.length > 0
+        ? { ok: false, explanation: buildPageErrorExplanation(captured.pageErrors) }
+        : await judgeScreenshot({ apiKey, model, instruction, sceneName, screenshotBase64: newScreenshot });
     } catch (err) {
       writeFileSync(scenePath, currentCode);
       return { code: currentCode, passes, warning: `Design check unavailable: ${err instanceof Error ? err.message : String(err)}` };
@@ -192,6 +209,21 @@ export async function generateScene({
     throw new Error(`${scenePath} already exists — pass overwrite: true to replace it`);
   }
 
+  // Runs once per project: as long as tokens.ts is still the scaffolded
+  // placeholder, this project has no visual identity of its own yet, so
+  // treat THIS instruction as the brief and derive one from it before
+  // building the prompt context below — ctx.tokens then picks up whatever
+  // was just written instead of the placeholder. Once this succeeds,
+  // tokens.ts no longer matches the placeholder, so later scenes in this
+  // project skip this and reuse the same derived look.
+  let tokensWarning;
+  const tokensPath = join(projectPath, 'src', 'tokens.ts');
+  if (existsSync(tokensPath) && isPlaceholderTokens(readFileSync(tokensPath, 'utf8'))) {
+    const derived = await derivePaletteTokens({ apiKey, model, instruction });
+    writeFileSync(tokensPath, derived.source);
+    tokensWarning = derived.warning;
+  }
+
   const ctx = buildContext(projectPath);
   const factoryName = factoryNameFor(sceneName);
   const systemPrompt = buildSystemPrompt(ctx, sceneName);
@@ -205,6 +237,14 @@ export async function generateScene({
   let attempts = 0;
   let unusedVarRepairs = 0;
   let lastErrors = '';
+  // The most recent attempt's code that actually typechecked cleanly (own
+  // files), captured right before the visual check — NOT necessarily the
+  // last attempt overall, since a later attempt can break typecheck again
+  // while chasing a visual fix. On a final failure this is what gets left
+  // on disk instead of a possibly-broken last attempt, and is reported back
+  // so a caller (the studio UI) can tell a "typechecks but doesn't look
+  // right" failure — safe to preview — from one where nothing usable exists.
+  let lastGoodCode = null;
   // Started lazily on the first typecheck pass and reused across repair
   // attempts within this one generateScene() call — one dev-server boot
   // per call, not per attempt.
@@ -263,6 +303,8 @@ export async function generateScene({
         typecheckWarning = 'This scene typechecks clean, but the project has unrelated pre-existing typecheck errors elsewhere.';
       }
 
+      lastGoodCode = code;
+
       // Typechecks clean — the visual check is the only thing that can
       // still catch a scene that renders wrong (see PLAN.md bug #1/#2:
       // wrong positioning typechecks fine).
@@ -285,7 +327,7 @@ export async function generateScene({
           designPasses = designResult.passes;
           designWarning = designResult.warning;
         }
-        const warning = [typecheckWarning, visualCheck.warning, designWarning].filter(Boolean).join(' ') || undefined;
+        const warning = [tokensWarning, typecheckWarning, visualCheck.warning, designWarning].filter(Boolean).join(' ') || undefined;
         return { success: true, sceneName, factoryName, code, attempts, designPasses, warning };
       }
 
@@ -293,7 +335,16 @@ export async function generateScene({
       messages.push(buildVisualRepairMessage(visualCheck.explanation, visualCheck.screenshotBase64));
     }
 
-    return { success: false, sceneName, factoryName, code, attempts, errors: lastErrors };
+    // Never leave a typecheck-broken file as the final on-disk state just
+    // because the last attempt was chasing a visual fix and broke
+    // compilation along the way — fall back to the last version that
+    // actually typechecked, so whatever's on disk (and registered in
+    // main.ts) is always at least safe to attach to the timeline and preview.
+    if (lastGoodCode !== null && lastGoodCode !== code) {
+      writeFileSync(scenePath, lastGoodCode);
+      code = lastGoodCode;
+    }
+    return { success: false, sceneName, factoryName, code, attempts, errors: lastErrors, safeToAttach: lastGoodCode !== null };
   } finally {
     if (devServer) stopDevServer(devServer);
   }

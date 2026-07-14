@@ -21,6 +21,8 @@ export interface GenerateResult {
   attempts: number;
   errors?: string;
   warning?: string;
+  /** Only meaningful when success is false: whether a typechecked (if not necessarily on-brief) version of the scene was still written to disk and registered — safe to attach to the timeline and preview. */
+  safeToAttach?: boolean;
 }
 
 async function json<T>(res: Response): Promise<T> {

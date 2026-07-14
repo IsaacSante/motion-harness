@@ -39,7 +39,21 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
         onGenerated(result.sceneName);
       } else {
         setStatus('error');
-        setMessage(`Failed after ${result.attempts} attempt(s):\n${result.errors ?? ''}`);
+        // A brand-new scene that at least typechecks is still worth attaching —
+        // otherwise a failed generation leaves usable, already-registered code
+        // sitting on disk with no way to see or iterate on it from the studio.
+        // Regenerating an existing clip needs no extra step: the (typechecked)
+        // last attempt is already written in place at that clip.
+        const canAttach = result.safeToAttach && !overwrite;
+        const note = canAttach
+          ? ' The last attempt still typechecked, so it was saved and attached to the timeline as a new clip — preview it and regenerate (overwrite checked) to try fixing it.'
+          : overwrite
+            ? ' The last attempt that typechecked (if any) is still saved in place at this clip.'
+            : '';
+        setMessage(`Failed after ${result.attempts} attempt(s):\n${result.errors ?? ''}${note}`);
+        if (canAttach) {
+          onGenerated(result.sceneName);
+        }
       }
     } catch (err) {
       setStatus('error');
