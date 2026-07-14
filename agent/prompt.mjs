@@ -121,10 +121,15 @@ Look at the attached screenshot and fix the code so the issue above is gone. Out
   };
 }
 
-// Same multimodal shape as buildVisualRepairMessage, worded for design-
-// quality refinement rather than correctness — the scene already works,
-// this is a polish pass, so it explicitly says not to change behavior.
-export function buildDesignRepairMessage(explanation, screenshotBase64) {
+// Unlike the other repair messages, this asks for targeted find-and-replace
+// edits instead of a full-file rewrite. A design pass is a polish operation —
+// spacing, alignment, a gap — and regenerating the entire file from scratch
+// for that has far more surface area to accidentally break something the
+// pass wasn't even trying to touch than editing the specific lines that
+// need to change. The current file is embedded directly rather than relied
+// on from conversation history so "old" snippets always match the actual
+// current state, including edits from any earlier design pass this call.
+export function buildDesignRepairMessage(explanation, screenshotBase64, currentCode) {
   return {
     role: 'user',
     content: [
@@ -134,7 +139,21 @@ export function buildDesignRepairMessage(explanation, screenshotBase64) {
 
 ${explanation}
 
-Look at the attached screenshot and improve the spacing/alignment/composition so the issue above is resolved, without changing what the scene fundamentally does. Output ONLY the corrected, complete TypeScript file — no explanation, no markdown fences.`,
+Current file:
+\`\`\`ts
+${currentCode}
+\`\`\`
+
+Look at the attached screenshot and improve the spacing/alignment/composition so the issue above is resolved, without changing what the scene fundamentally does.
+
+Output ONLY a JSON array of targeted edits against the current file above, each shaped exactly like:
+[{ "old": "<exact snippet copied verbatim from the current file, including whitespace/indentation>", "new": "<replacement text>" }]
+
+Rules:
+- Each "old" must be copied EXACTLY from the current file above (matching whitespace) and must appear only once in it — this is a find-and-replace, not a line-numbered diff.
+- Keep edits as small as they can be while still fixing the issue — a spacing/alignment fix is usually one or two short edits, not a rewrite of the whole enter() body.
+- Don't touch anything unrelated to the flagged issue.
+- Output ONLY the JSON array — no markdown fences, no explanation.`,
       },
       { type: 'image_url', image_url: { url: `data:image/png;base64,${screenshotBase64}` } },
     ],

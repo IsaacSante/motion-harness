@@ -4,6 +4,7 @@ import { execSync } from 'node:child_process';
 import { buildContext } from './context.mjs';
 import { buildSystemPrompt, buildRepairMessage, buildUnusedVarsRepairMessage, buildVisualRepairMessage, buildDesignRepairMessage, factoryNameFor } from './prompt.mjs';
 import { extractCode } from './extract-code.mjs';
+import { extractEdits, applyEdits } from './apply-edits.mjs';
 import { registerScene } from './registry-patch.mjs';
 import { chatCompletion } from './cerebras.mjs';
 import { captureScenePreview, judgeScreenshot, judgeDesignQuality } from './screenshot.mjs';
@@ -110,10 +111,20 @@ async function runDesignPasses({
     }
 
     passes++;
-    messages.push(buildDesignRepairMessage(designVerdict.explanation, currentScreenshot));
+    messages.push(buildDesignRepairMessage(designVerdict.explanation, currentScreenshot, currentCode));
     const raw = await chatCompletion({ apiKey, model, messages });
-    const candidateCode = extractCode(raw);
     messages.push({ role: 'assistant', content: raw });
+
+    let candidateCode;
+    try {
+      candidateCode = applyEdits(currentCode, extractEdits(raw));
+    } catch (err) {
+      return {
+        code: currentCode,
+        passes,
+        warning: `A design-refinement pass produced invalid edits (${err instanceof Error ? err.message : String(err)}); kept the last working version.`,
+      };
+    }
 
     if (!candidateCode.includes(factoryName)) {
       return { code: currentCode, passes, warning: 'A design-refinement pass produced invalid output; kept the last working version.' };
