@@ -32,12 +32,25 @@ ${catalogLines}
 ${ctx.tokens}
 \`\`\`
 
-## A correctly structured existing scene, for style/shape reference
+## A correctly structured existing scene — for CODE STRUCTURE only (imports, the
+## Scene contract's shape, teardown), NOT for what this scene should look like or
+## how it should move. Its specific motif and layout choice is one example, not
+## the required look — copying it verbatim regardless of brief is wrong exactly
+## as often as it's right.
 \`\`\`ts
 ${ctx.exampleScene}
 \`\`\`
 
 ## Requirements
+- Decide motion and composition from THIS instruction, not from habit. The motifs above
+  ("motif" kind) are entrance/idle building blocks to compose freely — not a menu where one
+  entry is the right pick regardless of brief, and not the only way to move something. Some
+  briefs (a receding 3D crawl, a transformation, a wipe) call for hand-driving
+  \`createLayeredElement\`'s layer values directly with your own tween rather than reaching for
+  any named motif at all — that's correct when none of them fit, not a fallback of last resort.
+  If two scenes in this project would end up with the same motif + the same centered layout
+  regardless of what their instructions asked for, that's a sign you defaulted instead of
+  reasoning about this specific brief.
 - Export exactly one factory function named EXACTLY \`${factoryName}\`, shaped like:
   \`export const ${factoryName} = (config: SomeConfig = {}): Scene<SomeConfig> => { ... }\`
 - Use \`defineBeats\` for any timing/duration decisions instead of inline magic numbers.

@@ -116,7 +116,7 @@
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
     "signature": "({ duration = 0.6, ease = 'power3.out', distance = 30 }: MotifParams = {}): MotifSpec",
-    "description": "Rises from below while fading in. The default \"arrival\" beat for anything laid out on a grid or row."
+    "description": "Rises from below while fading in — a grounded, straightforward arrival. One option among the motifs here, not a default to reach for regardless of brief; a scene calling for a different feel (a pop, a materialize, a custom transform entirely) should use that instead."
   },
   {
     "name": "scalePop",
