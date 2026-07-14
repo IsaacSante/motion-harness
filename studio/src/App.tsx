@@ -120,8 +120,8 @@ export function App() {
           <>
             <div className="toolbar">
               <h1>{selectedProject}</h1>
+              {status && <span className="status">{status}</span>}
               <div className="toolbar-actions">
-                {status && <span className="status">{status}</span>}
                 <button onClick={save} disabled={!dirty}>Save{dirty ? '*' : ''}</button>
                 <button
                   onClick={() => setPreviewReloadToken((t) => t + 1)}

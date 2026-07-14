@@ -278,12 +278,21 @@ button.danger {
 }
 
 .scaled-preview-frame {
+  position: relative;
   transform-origin: top left;
 }
 
 .scaled-preview-frame iframe {
+  position: absolute;
+  top: 0;
+  left: 0;
   border: none;
   display: block;
+}
+
+.scaled-preview-iframe-pending {
+  visibility: hidden;
+  pointer-events: none;
 }
 
 .inspector-panel {

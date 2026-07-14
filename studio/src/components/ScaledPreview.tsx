@@ -19,9 +19,26 @@ export interface ScaledPreviewProps {
   reloadToken?: number;
 }
 
+interface Frame {
+  url: string;
+  token: number;
+}
+
 export function ScaledPreview({ url, reloadToken = 0 }: ScaledPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
+  // The iframe that's currently on screen. Swapped to `pending` only once
+  // the replacement has actually loaded (see below) — never removed
+  // up front — so a reload never shows a blank/black flash.
+  const [visible, setVisible] = useState<Frame>({ url, token: reloadToken });
+  const [pending, setPending] = useState<Frame | null>(null);
+
+  useEffect(() => {
+    if (url !== visible.url || reloadToken !== visible.token) {
+      setPending({ url, token: reloadToken });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [url, reloadToken]);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -45,7 +62,27 @@ export function ScaledPreview({ url, reloadToken = 0 }: ScaledPreviewProps) {
             className="scaled-preview-frame"
             style={{ width: CANONICAL_W, height: CANONICAL_H, transform: `scale(${scale})` }}
           >
-            <iframe key={`${url}:${reloadToken}`} src={url} title="preview" width={CANONICAL_W} height={CANONICAL_H} />
+            <iframe
+              key={`${visible.url}:${visible.token}`}
+              src={visible.url}
+              title="preview"
+              width={CANONICAL_W}
+              height={CANONICAL_H}
+            />
+            {pending && (
+              <iframe
+                key={`${pending.url}:${pending.token}`}
+                src={pending.url}
+                title="preview (loading)"
+                width={CANONICAL_W}
+                height={CANONICAL_H}
+                className="scaled-preview-iframe-pending"
+                onLoad={() => {
+                  setVisible(pending);
+                  setPending(null);
+                }}
+              />
+            )}
           </div>
         </div>
       )}
