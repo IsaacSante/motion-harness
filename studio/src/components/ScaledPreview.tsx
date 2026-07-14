@@ -9,9 +9,17 @@ const CANONICAL_H = 1080;
 
 export interface ScaledPreviewProps {
   url: string;
+  /** Bump this to force the preview to reload from t=0. The iframe is a
+   * different origin (different port) than the studio itself, so the parent
+   * can't reach into it to call location.reload() directly — remounting via
+   * a changed key is the only cross-origin-safe way to restart it. Without
+   * this, a scene that finishes playing (most are a few seconds, no loop)
+   * just sits on its last frame or a blank overlay forever, with nothing in
+   * the UI to get it playing again short of a manual browser refresh. */
+  reloadToken?: number;
 }
 
-export function ScaledPreview({ url }: ScaledPreviewProps) {
+export function ScaledPreview({ url, reloadToken = 0 }: ScaledPreviewProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(0);
 
@@ -37,7 +45,7 @@ export function ScaledPreview({ url }: ScaledPreviewProps) {
             className="scaled-preview-frame"
             style={{ width: CANONICAL_W, height: CANONICAL_H, transform: `scale(${scale})` }}
           >
-            <iframe key={url} src={url} title="preview" width={CANONICAL_W} height={CANONICAL_H} />
+            <iframe key={`${url}:${reloadToken}`} src={url} title="preview" width={CANONICAL_W} height={CANONICAL_H} />
           </div>
         </div>
       )}

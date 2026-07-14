@@ -18,6 +18,12 @@ export function App() {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [previewLoading, setPreviewLoading] = useState(false);
   const [status, setStatus] = useState<string | null>(null);
+  // Most scenes are a few seconds with no loop — once playback finishes the
+  // preview just sits there (blank, or on its last frame) with nothing to
+  // watch. Bumping this remounts the preview iframe from t=0; see
+  // ScaledPreview for why a plain iframe.contentWindow.reload() can't work
+  // (different origin/port than the studio itself).
+  const [previewReloadToken, setPreviewReloadToken] = useState(0);
 
   useEffect(() => {
     api.listProjects().then(setProjects).catch((err) => setStatus(String(err)));
@@ -85,6 +91,7 @@ export function App() {
     await api.saveTimeline(selectedProject, timeline);
     setDirty(false);
     setStatus('Saved');
+    setPreviewReloadToken((t) => t + 1);
     setTimeout(() => setStatus(null), 1500);
   };
 
@@ -116,6 +123,13 @@ export function App() {
               <div className="toolbar-actions">
                 {status && <span className="status">{status}</span>}
                 <button onClick={save} disabled={!dirty}>Save{dirty ? '*' : ''}</button>
+                <button
+                  onClick={() => setPreviewReloadToken((t) => t + 1)}
+                  disabled={!previewUrl}
+                  title="Most scenes finish playing in a few seconds and don't loop — use this to watch again"
+                >
+                  ↺ Restart preview
+                </button>
                 <button onClick={openFullscreen} disabled={!previewUrl}>
                   {previewLoading && !previewUrl ? 'Starting…' : 'Open fullscreen'}
                 </button>
@@ -133,7 +147,7 @@ export function App() {
             <div className="workspace">
               <div className="preview-pane">
                 {previewUrl ? (
-                  <ScaledPreview url={previewUrl} />
+                  <ScaledPreview url={previewUrl} reloadToken={previewReloadToken} />
                 ) : (
                   <div className="empty">{previewLoading ? 'Starting preview…' : 'Preview unavailable'}</div>
                 )}
@@ -146,12 +160,22 @@ export function App() {
                   onGenerated={(sceneName) => {
                     api.listScenes(selectedProject).then(setScenes);
                     const alreadyOnTimeline = timeline.clips.some((c) => c.scene === sceneName);
-                    if (!alreadyOnTimeline) {
-                      mutateClips((clips) => [
-                        ...clips,
-                        { id: newClipId(), scene: sceneName, duration: 3, config: {} },
-                      ]);
-                    }
+                    if (alreadyOnTimeline) return;
+                    // Auto-attach must also auto-save: the live preview reads
+                    // timeline.json off disk, not React state. Leaving this
+                    // as a dirty in-memory edit meant "generate a scene" and
+                    // "actually see it" were two steps with nothing telling
+                    // you the first one silently did nothing on its own —
+                    // the preview just kept showing whatever was on disk
+                    // before.
+                    const next = { ...timeline, clips: [...timeline.clips, { id: newClipId(), scene: sceneName, duration: 3, config: {} }] };
+                    setTimeline(next);
+                    api.saveTimeline(selectedProject, next).then(() => {
+                      setDirty(false);
+                      setStatus('Saved — new clip attached');
+                      setPreviewReloadToken((t) => t + 1);
+                      setTimeout(() => setStatus(null), 1500);
+                    });
                   }}
                 />
               </div>

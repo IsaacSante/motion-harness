@@ -3,120 +3,147 @@
     "name": "SceneManager",
     "module": "src/scene/manager.ts",
     "kind": "core",
+    "signature": null,
     "description": "Sequences scenes: hard-cut transitions, or overlapping crossfades, plus the per-frame tick/draw dispatch to whichever scene is current. This is the one piece of orchestration a motion-graphics piece needs regardless of visual style — scenes never talk to each other directly."
   },
   {
     "name": "setupCanvas",
     "module": "src/scene/loop.ts",
     "kind": "core",
+    "signature": "(canvas: HTMLCanvasElement): CanvasSurface",
     "description": "Optional helper for scenes that need a raw Canvas2D surface (particle fields, hand-rolled text effects). DOM/WebGL-only scenes don't need this — they can read width/height/dpr straight off SceneCtx."
   },
   {
     "name": "startLoop",
     "module": "src/scene/loop.ts",
     "kind": "core",
+    "signature": "(manager: SceneManager, sctx: SceneCtx)",
     "description": "Starts the shared rAF loop: ticks the active scene's update(), then draws it. One loop, one clock, for the whole piece — scenes never run their own requestAnimationFrame."
   },
   {
     "name": "compileProgram",
     "module": "src/gl/program.ts",
     "kind": "effect",
+    "signature": "(gl: WebGLRenderingContext, vsSrc: string, fsSrc: string): WebGLProgram",
     "description": "Compiles and links a vertex/fragment shader pair, throwing with the GL error log on failure — the compile/link dance every hand-rolled shader effect needs, written once."
   },
   {
     "name": "createFullscreenTriangle",
     "module": "src/gl/program.ts",
     "kind": "effect",
+    "signature": "(gl: WebGLRenderingContext): WebGLBuffer",
     "description": "Uploads one oversized triangle covering the whole clip space — a cheaper full-screen quad (one triangle instead of two). Bind the returned buffer to your position attribute and draw with gl.TRIANGLES, 0, 3."
   },
   {
     "name": "createPointField",
     "module": "src/gl/particles.ts",
     "kind": "effect",
+    "signature": "( gl: WebGLRenderingContext, program: WebGLProgram, count: number, layout: AttribLayout[], fill: (i: number, out: Float32Array, offsetFloats: number) => void, ): PointField",
     "description": "Allocates an interleaved GL buffer of `count` points, each described by `layout` (e.g. [{name:'aOrigin',size:2},{name:'aBirth',size:1}]), fills it via `fill(i, out, offsetFloats)`, and returns a bind() that wires every attribute location on `program` in one call — the interleaved-buffer bookkeeping every point-sprite particle system repeats by hand."
   },
   {
     "name": "destroyProgram",
     "module": "src/gl/program.ts",
     "kind": "effect",
+    "signature": "(gl: WebGLRenderingContext, program: WebGLProgram)",
     "description": "Deletes a program's attached shaders and the program itself. Call from a scene's exit() so shader-driven scenes don't leak GL objects across repeated enter/exit cycles."
   },
   {
     "name": "loseContext",
     "module": "src/gl/program.ts",
     "kind": "effect",
+    "signature": "(gl: WebGLRenderingContext)",
     "description": "Forces a context to release GPU resources immediately rather than waiting on GC — useful when a scene spins up a fresh WebGL context per instance (e.g. one canvas per particle burst) and needs it gone before the next one spawns."
+  },
+  {
+    "name": "columnSlots",
+    "module": "src/layout/arrange.ts",
+    "kind": "layout",
+    "signature": "(n: number, cx: number, cy: number, h: number, gap: number): Point[]",
+    "description": "Evenly spaced vertical column of n slots, centered on (cx, cy) — the title/subtitle/badge-style vertical stack every title-card scene needs. `gap` is a real parameter, not a magic number you eyeball per element: pass a `space` token (e.g. `space.lg`) for a consistent rhythm instead of hand-picking a different offset for every element in the stack."
   },
   {
     "name": "reflowRow",
     "module": "src/layout/arrange.ts",
     "kind": "layout",
+    "signature": "(widths: number[], gap: number, cx: number): number[]",
     "description": "Given a list of element widths, returns centers for a row of that total width centered on cx — used to reflow a pill/chip row as items join or leave."
   },
   {
     "name": "ringSlots",
     "module": "src/layout/arrange.ts",
     "kind": "layout",
+    "signature": "(n: number, radius: number, rotationDeg = 0): RingSlot[]",
     "description": "n slots evenly spaced around a circle of the given radius in the XZ plane (for a 3D perspective ring/carousel) — angle 0 sits at +Z, facing the camera."
   },
   {
     "name": "rowSlots",
     "module": "src/layout/arrange.ts",
     "kind": "layout",
+    "signature": "(n: number, cx: number, cy: number, w: number, gap: number): Point[]",
     "description": "Evenly spaced horizontal row of n slots, centered on (cx, cy)."
   },
   {
     "name": "blurMaterialize",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
+    "signature": "({ duration = 0.7, ease = 'expo.out', distance = 25 }: MotifParams = {}): MotifSpec",
     "description": "Text or UI \"resolves into focus\" — starts blurred, undersized and transparent, sharpens to rest. Reads as materializing rather than sliding in; pairs well with a progressive reveal (e.g. a typewriter) running underneath it."
   },
   {
     "name": "expoSettle",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
+    "signature": "({ duration = 0.7, distance = 30 }: MotifParams = {}): MotifSpec",
     "description": "Cinematic, decisive settle — the \"Jitter / Screen Studio\" house curve. The final ~20% of the tween covers a tiny distance so motion reads as genuinely stopped, not still drifting when the eye moves on."
   },
   {
     "name": "floatDrift",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
-    "description": "Perpetual idle wander for a resting element — mismatched x/y periods so multiple instances never bob in lockstep. Has no start/end, so it returns per-axis yoyo/repeat(-1) targets instead of a single from/to spec; feed each axis to your own engine's infinite-yoyo tween."
+    "signature": "({ ampX = 20, ampY = 25, periodX = 6, periodY = 7, seed = 0, }: DriftParams = {}): { x: DriftAxis; y: DriftAxis }",
+    "description": "Perpetual idle wander for a RESTING element — mismatched x/y periods so multiple instances never bob in lockstep. Start this only after any entry tween on the same element has finished, not at the same time as one: starting drift simultaneously with an entry motion composes into a chaotic wobble-while-arriving instead of a clean arrival followed by a settled idle. Different shape from every other motif here — no `.from`, and the finite `{ to, duration, ease }` spec lives PER AXIS, not at the top level: `floatDrift()` returns `{ x: { to, duration, ease }, y: { to, duration, ease } }`. Never read `.x`/`.y` as numbers — each is its own tween target. Feed each axis to its own infinite-yoyo tween on the SAME layer: ```ts const drift = floatDrift(); gsap.to(layer.layers.idle, { x: drift.x.to, duration: drift.x.duration, ease: drift.x.ease, repeat: -1, yoyo: true, onUpdate: layer.apply }); gsap.to(layer.layers.idle, { y: drift.y.to, duration: drift.y.duration, ease: drift.y.ease, repeat: -1, yoyo: true, onUpdate: layer.apply }); ```"
   },
   {
     "name": "overshootSpring",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
+    "signature": "({ duration = 0.6 }: MotifParams = {}): MotifSpec",
     "description": "Overshoots past rest then springs back — gives an element a sense of weight on arrival instead of a frictionless glide."
   },
   {
     "name": "riseFade",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
+    "signature": "({ duration = 0.6, ease = 'power3.out', distance = 30 }: MotifParams = {}): MotifSpec",
     "description": "Rises from below while fading in. The default \"arrival\" beat for anything laid out on a grid or row."
   },
   {
     "name": "scalePop",
     "module": "src/motifs/entrances.ts",
     "kind": "motif",
+    "signature": "({ duration = 0.45, ease = 'back.out(1.6)' }: MotifParams = {}): MotifSpec",
     "description": "Scales up from slightly-under-size while fading in — reads as a soft pop rather than a slide. Good for pills, badges, small chips."
   },
   {
     "name": "createLayeredElement",
     "module": "src/compose/layered-state.ts",
     "kind": "primitive",
-    "description": "The single-writer composition pattern: several independently-tweened layers of motion (entry, idle drift, exit, reaction to something else...) summed into ONE transform/opacity write per frame, so they compose instead of fighting over the same element. Positions and rotations add; scale and opacity multiply. Layers are plain mutable objects — tween them with whatever animation engine you like (gsap, motion, raw rAF); call apply() from that tween's onUpdate. For a channel outside transform/opacity (blur, color), keep a parallel plain object and write it in the same onUpdate — nothing here forces every property through apply()."
+    "signature": "( el: HTMLElement, layerNames: readonly L[], opts: CreateLayeredElementOptions = {}, ): LayeredElement<L>",
+    "description": "The single-writer composition pattern: several independently-tweened layers of motion (entry, idle drift, exit, reaction to something else...) summed into ONE transform/opacity write per frame, so they compose instead of fighting over the same element. Positions and rotations add; scale and opacity multiply. Layers are plain mutable objects — tween them with whatever animation engine you like (gsap, motion, raw rAF); call apply() from that tween's onUpdate. For a channel outside transform/opacity (blur, color), keep a parallel plain object and write it in the same onUpdate — nothing here forces every property through apply(). PRECONDITION: `el` must already be `position: absolute; left: 0; top: 0` before apply() ever runs. `apply()` only ever writes `transform` — CSS transforms visually offset whatever position the element already has, they don't establish one. Leave an element in normal flow (or flex-centered) and every translate3d() this writes stacks on top of that existing positioning instead of replacing it, silently pushing the element off-stage. This typechecks fine either way — there is no type error for it — so get the positioning right before wiring an element through createLayeredElement. To CENTER el on a point, use `opts.center` (see CreateLayeredElementOptions) instead of hand-computing `origin` — it measures el's actual rendered size for you. Also requires el to already be appended to the DOM with its final content/style set (createLayeredElement reads its layout, so call it after you've built the element, not before)."
   },
   {
     "name": "createTeardownBag",
     "module": "src/lifecycle/bag.ts",
     "kind": "primitive",
+    "signature": "(): TeardownBag",
     "description": "Central bookkeeping for a scene's teardown: track every tween and owned resource as you create it, then killAll()/disposeAll() from exit() instead of hand-maintaining parallel arrays and remembering to drain each one."
   },
   {
     "name": "defineBeats",
     "module": "src/beats/beats.ts",
     "kind": "primitive",
+    "signature": "(map: M, opts: BeatsOptions = {}): Beats<M>",
     "description": "Named-duration pacing. Define a scene's rhythm as one beat -> seconds map, then retime the whole scene by scaling a single number instead of hunting for magic-number durations scattered across the file."
   }
 ]

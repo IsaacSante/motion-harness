@@ -13,6 +13,20 @@ export const rowSlots = (n: number, cx: number, cy: number, w: number, gap: numb
   return Array.from({ length: n }, (_, i) => ({ x: startX + i * (w + gap), y: cy }));
 };
 
+/**
+ * @kind layout
+ * Evenly spaced vertical column of n slots, centered on (cx, cy) — the
+ * title/subtitle/badge-style vertical stack every title-card scene needs.
+ * `gap` is a real parameter, not a magic number you eyeball per element:
+ * pass a `space` token (e.g. `space.lg`) for a consistent rhythm instead of
+ * hand-picking a different offset for every element in the stack.
+ */
+export const columnSlots = (n: number, cx: number, cy: number, h: number, gap: number): Point[] => {
+  const total = n * h + (n - 1) * gap;
+  const startY = cy - total / 2 + h / 2;
+  return Array.from({ length: n }, (_, i) => ({ x: cx, y: startY + i * (h + gap) }));
+};
+
 export interface RingSlot {
   x: number;
   z: number;

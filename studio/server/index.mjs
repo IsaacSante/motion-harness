@@ -2,11 +2,11 @@ import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { spawn } from 'node:child_process';
 import { scaffoldProject, DEFAULT_PROJECTS_ROOT } from './scaffold.mjs';
 import { listProjects, addProject, findProject } from './registry.mjs';
 import { loadEnvFile } from '../../agent/env.mjs';
 import { generateScene } from '../../agent/generate-scene.mjs';
+import { startDevServerOnAvailablePort, stopDevServer } from '../../scripts/lib/dev-server.mjs';
 
 loadEnvFile(fileURLToPath(new URL('../../agent/.env', import.meta.url)));
 
@@ -38,23 +38,9 @@ async function startPreview(name) {
 
   const project = findProject(name);
   const port = nextPreviewPort++;
-  const proc = spawn('npm', ['run', 'dev', '--', '--port', String(port), '--strictPort'], {
-    cwd: project.path,
-    stdio: 'pipe',
-  });
-  const preview = { proc, port, url: `http://localhost:${port}` };
+  const preview = await startDevServerOnAvailablePort(project.path, port);
   previews.set(name, preview);
-  proc.on('exit', () => previews.delete(name));
-
-  await new Promise((resolve) => {
-    const timeout = setTimeout(resolve, 5000);
-    proc.stdout.on('data', (chunk) => {
-      if (chunk.toString().includes('ready in')) {
-        clearTimeout(timeout);
-        resolve();
-      }
-    });
-  });
+  preview.proc.on('exit', () => previews.delete(name));
 
   return preview;
 }
@@ -62,7 +48,7 @@ async function startPreview(name) {
 function stopPreview(name) {
   const preview = previews.get(name);
   if (preview) {
-    preview.proc.kill();
+    stopDevServer(preview);
     previews.delete(name);
   }
 }
@@ -147,7 +133,14 @@ server.listen(PORT, () => {
   console.log(`motion-harness studio server on http://localhost:${PORT}`);
 });
 
-process.on('SIGINT', () => {
-  for (const name of previews.keys()) stopPreview(name);
-  process.exit(0);
-});
+// SIGTERM too, not just SIGINT — a plain `kill`/`pkill` sends SIGTERM, and
+// without a handler for it, spawned preview dev servers are orphaned
+// instead of cleaned up. That's exactly what let a stale preview keep
+// serving on a port this process later reused after restart, silently
+// pointing a different project's preview at leftover content.
+for (const sig of ['SIGINT', 'SIGTERM']) {
+  process.on(sig, () => {
+    for (const name of previews.keys()) stopPreview(name);
+    process.exit(0);
+  });
+}

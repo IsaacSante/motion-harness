@@ -1,7 +1,14 @@
+// Not a real scene — never registered in main.ts's sceneRegistry, never on
+// the timeline. This exists purely so agent/context.mjs has a correctly-
+// shaped, project-idiomatic example to show the model on a brand-new
+// project's very first generation (import paths, tokens usage, the
+// createLayeredElement absolute-positioning precondition, teardown). Once a
+// project has a real generated scene, buildContext() prefers that instead —
+// see agent/context.mjs.
 import gsap from 'gsap';
 import type { Scene } from 'motion-harness';
 import { defineBeats, createLayeredElement, riseFade, createTeardownBag } from 'motion-harness';
-import { color, type as typeTokens } from '../tokens';
+import { color, type as typeTokens } from './tokens';
 
 const beats = defineBeats({
   entryDuration: 0.6,
@@ -9,29 +16,27 @@ const beats = defineBeats({
   exitDuration: 0.4,
 });
 
-export interface ExampleConfig {
+export interface ReferenceConfig {
   label?: string;
 }
 
-export const exampleScene = (config: ExampleConfig = {}): Scene<ExampleConfig> => {
+export const referenceScene = (config: ReferenceConfig = {}): Scene<ReferenceConfig> => {
   let root: HTMLDivElement;
   const bag = createTeardownBag();
 
   return {
-    id: 'example',
+    id: 'reference',
     config,
 
-    async enter({ overlay, width, height }) {
-      overlay.style.background = color.bg;
-      overlay.style.alignItems = 'center';
-      overlay.style.justifyContent = 'center';
+    async enter({ overlay, width, height, transparentBg }) {
+      overlay.style.background = transparentBg ? 'transparent' : color.bg;
 
       root = document.createElement('div');
       Object.assign(root.style, { position: 'relative', width: '100%', height: '100%' });
       overlay.appendChild(root);
 
       const el = document.createElement('div');
-      el.textContent = config.label ?? 'New scene';
+      el.textContent = config.label ?? 'Reference scene';
       Object.assign(el.style, {
         position: 'absolute',
         left: '0',
@@ -41,10 +46,17 @@ export const exampleScene = (config: ExampleConfig = {}): Scene<ExampleConfig> =
         fontSize: '2rem',
         fontWeight: String(typeTokens.weight.semibold),
       });
+      // Appended with its final content/style set BEFORE createLayeredElement
+      // runs — createLayeredElement.center measures el's actual rendered
+      // size, so el must already be in the DOM and fully styled first.
       root.appendChild(el);
 
       const layered = createLayeredElement(el, ['entry'] as const, {
-        origin: { x: width / 2, y: height / 2 },
+        // Measures el's own rendered size and centers it on this point —
+        // the correct way to center an element via transform, no manual
+        // origin math, no risk of double-centering by also giving el
+        // self-centering CSS (width: '100%' + textAlign: 'center') on top.
+        center: { x: width / 2, y: height / 2 },
       });
       const spec = riseFade();
       Object.assign(layered.layers.entry, spec.from);

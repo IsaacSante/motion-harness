@@ -20,3 +20,9 @@ timeline — lives in `src/` and is yours to edit freely.
 4. **`src/timeline.json`** is arrangement data — clip order, duration
    labels, per-scene config — normally edited through the motion-harness
    studio UI, but it's plain JSON if you ever need to hand-edit it.
+5. **`src/reference-scene.ts` is not a real scene.** It's never registered
+   in `sceneRegistry` and never on the timeline — it exists only so the
+   agent has a correctly-shaped example to imitate before this project has
+   any real generated scenes. Safe to ignore; safe to delete once you have
+   a few real scenes of your own (the agent then uses one of those instead —
+   see `agent/context.mjs` in the kit).

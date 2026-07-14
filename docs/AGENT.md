@@ -1,11 +1,15 @@
 # Working in a motion-harness project
 
 This project was scaffolded from `motion-harness`. Before writing new motion
-code, read `src/catalog/catalog.json` (regenerate with `npm run catalog`) —
-it's a flat list of every reusable primitive/motif/layout/effect already in
-the kit, with a one-line description. Check it before hand-rolling a tween, a
-shader, or a layout helper; most "new" motion needs are a combination of 2-3
-existing entries, not a new one.
+code, read `src/catalog/catalog.json` — it's a flat list of every reusable
+primitive/motif/layout/effect already in the kit, with a description. Check
+it before hand-rolling a tween, a shader, or a layout helper; most "new"
+motion needs are a combination of 2-3 existing entries, not a new one.
+`npm run catalog` regenerates that file on disk for browsing — the agent
+itself doesn't depend on it being fresh (it builds the same catalog live from
+the kit's actual source on every generation, via `scripts/lib/catalog.mjs`),
+but it's still worth regenerating after adding/editing a tagged primitive so
+the file in git matches what a human reading it would expect.
 
 ## Rules
 
@@ -33,8 +37,11 @@ existing entries, not a new one.
     */
    export const myThing = (...) => { ... };
    ```
-   Then run `npm run catalog`. Untagged exports don't show up in the catalog
-   and won't be found by a future run — if it's genuinely reusable, tag it.
+   Untagged exports don't show up in the catalog (for the agent OR a human
+   browsing it) and won't be found by a future generation — if it's genuinely
+   reusable, tag it. Run `npm run catalog` afterward to keep the on-disk
+   `catalog.json` in sync for humans; the agent sees the change immediately
+   either way.
 5. **New motion specific to one scene stays in that scene's file.** Don't
    promote something to `src/` on its first use. Promote it once a *second*
    scene wants the same behavior — that's the signal it's actually shared,

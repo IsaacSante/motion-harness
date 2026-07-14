@@ -96,10 +96,22 @@ export interface DriftAxis {
 
 /**
  * @kind motif
- * Perpetual idle wander for a resting element — mismatched x/y periods so
- * multiple instances never bob in lockstep. Has no start/end, so it returns
- * per-axis yoyo/repeat(-1) targets instead of a single from/to spec; feed
- * each axis to your own engine's infinite-yoyo tween.
+ * Perpetual idle wander for a RESTING element — mismatched x/y periods so
+ * multiple instances never bob in lockstep. Start this only after any entry
+ * tween on the same element has finished, not at the same time as one:
+ * starting drift simultaneously with an entry motion composes into a
+ * chaotic wobble-while-arriving instead of a clean arrival followed by a
+ * settled idle. Different shape from every other motif here — no `.from`,
+ * and the finite `{ to, duration, ease }` spec lives PER AXIS, not at the
+ * top level: `floatDrift()` returns `{ x: { to, duration, ease }, y: {
+ * to, duration, ease } }`. Never read `.x`/`.y` as numbers — each is its
+ * own tween target. Feed each axis to its own infinite-yoyo tween on the
+ * SAME layer:
+ * ```ts
+ * const drift = floatDrift();
+ * gsap.to(layer.layers.idle, { x: drift.x.to, duration: drift.x.duration, ease: drift.x.ease, repeat: -1, yoyo: true, onUpdate: layer.apply });
+ * gsap.to(layer.layers.idle, { y: drift.y.to, duration: drift.y.duration, ease: drift.y.ease, repeat: -1, yoyo: true, onUpdate: layer.apply });
+ * ```
  */
 export const floatDrift = ({
   ampX = 20,

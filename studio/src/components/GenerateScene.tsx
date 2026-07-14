@@ -34,7 +34,7 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
         const base = result.warning
           ? `Generated after ${result.attempts} attempt(s). ${result.warning}`
           : `Generated and typechecked cleanly after ${result.attempts} attempt(s).`;
-        setMessage(`${base} Added to the timeline — click Save, then Preview to see it.`);
+        setMessage(`${base} Attached to the timeline and saved — it'll play after whatever clips come before it.`);
         setInstruction('');
         onGenerated(result.sceneName);
       } else {
@@ -87,9 +87,11 @@ export function GenerateScene({ project, selectedClipScene, onGenerated }: Gener
       {status === 'error' && <pre className="error">{message}</pre>}
       {status !== 'loading' && (
         <div className="hint">
-          A brand-new scene name gets added to the timeline as a new clip automatically.
-          Regenerating an existing clip's scene (name pre-filled, overwrite checked) just
-          replaces its code in place — nothing to reattach.
+          A brand-new scene name gets added to the timeline as a new clip and saved
+          automatically — it's appended to the end, so it plays after whatever's already
+          there, not necessarily first. Regenerating an existing clip's scene (name
+          pre-filled, overwrite checked) just replaces its code in place — nothing to
+          reattach.
         </div>
       )}
     </div>
