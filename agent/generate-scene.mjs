@@ -20,6 +20,32 @@ function runTypecheck(projectPath) {
   }
 }
 
+// tsc's text output is one diagnostic per block: a `file(line,col): error
+// TSxxxx: ...` header line followed by indented continuation lines (the
+// actual "why" — e.g. every overload it tried and how each one failed).
+// Only the header line contains the file path, so filtering line-by-line
+// on "does this line mention the file" keeps the header and throws away
+// every continuation line — the model gets "no overload matches" with zero
+// explanation of why. Group into whole blocks first, then filter blocks.
+function relevantDiagnostics(output, fileNames) {
+  const lines = output.split('\n');
+  const blocks = [];
+  let current = null;
+  for (const line of lines) {
+    if (/^\S+\.ts\(\d+,\d+\): error/.test(line)) {
+      if (current) blocks.push(current);
+      current = [line];
+    } else if (current) {
+      current.push(line);
+    }
+  }
+  if (current) blocks.push(current);
+
+  const matched = blocks.filter((block) => fileNames.some((f) => block[0].includes(f)));
+  const chosen = matched.length ? matched : blocks;
+  return chosen.map((b) => b.join('\n')).join('\n\n') || output;
+}
+
 /**
  * Generate one scene file for a motion-harness project from a natural-
  * language instruction: prompts the LLM with the kit's catalog + this
@@ -85,10 +111,7 @@ export async function generateScene({
       return { success: true, sceneName, factoryName, code, attempts };
     }
 
-    lastErrors = result.output
-      .split('\n')
-      .filter((line) => line.includes(`scenes/${sceneName}.ts`) || line.includes('main.ts'))
-      .join('\n') || result.output;
+    lastErrors = relevantDiagnostics(result.output, [`scenes/${sceneName}.ts`, 'main.ts']);
 
     messages.push({ role: 'user', content: buildRepairMessage(lastErrors) });
   }

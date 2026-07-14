@@ -40,6 +40,12 @@ ${ctx.exampleScene}
   more than one independent thing driving its motion (entry + idle drift + exit, etc).
 - Always tear down in exit(): kill every tween, remove every DOM node you created. Use
   \`createTeardownBag\` to track them instead of parallel arrays.
+- Everything tagged "motif" above (riseFade, scalePop, blurMaterialize, expoSettle,
+  overshootSpring, floatDrift) is a FACTORY FUNCTION, not a value. You must CALL it —
+  e.g. \`const spec = riseFade();\` — then read \`spec.from\`, \`spec.to\`, \`spec.duration\`,
+  \`spec.ease\` (a string) off the returned object. Never pass the bare function itself
+  (e.g. \`ease: riseFade\`) anywhere gsap expects an ease, a number, or a style value —
+  that is a type error every time.
 - Output ONLY the raw TypeScript source of the file. No markdown fences, no explanation,
   no commentary before or after the code.`;
 }
