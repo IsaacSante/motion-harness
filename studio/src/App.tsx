@@ -3,6 +3,7 @@ import { api, type Clip, type Project, type Timeline as TimelineData } from './a
 import { ProjectList } from './components/ProjectList';
 import { Timeline } from './components/Timeline';
 import { Inspector } from './components/Inspector';
+import { GenerateScene } from './components/GenerateScene';
 
 const newClipId = () => `clip-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -137,7 +138,16 @@ export function App() {
                   <div className="empty">Click Preview to run this project</div>
                 )}
               </div>
-              <Inspector clip={selectedClip} scenes={scenes} onChange={updateClip} onDelete={deleteClip} />
+              <div className="side-panels">
+                <Inspector clip={selectedClip} scenes={scenes} onChange={updateClip} onDelete={deleteClip} />
+                <GenerateScene
+                  project={selectedProject}
+                  selectedClipScene={selectedClip?.scene ?? null}
+                  onGenerated={() => {
+                    api.listScenes(selectedProject).then(setScenes);
+                  }}
+                />
+              </div>
             </div>
           </>
         ) : (

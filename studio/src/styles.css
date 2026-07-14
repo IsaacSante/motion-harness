@@ -237,9 +237,21 @@ button.danger {
 
 .workspace {
   display: grid;
-  grid-template-columns: 1fr 280px;
+  grid-template-columns: 1fr 320px;
   flex: 1;
   min-height: 0;
+}
+
+.side-panels {
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  border-left: 1px solid #2a2b30;
+}
+
+.side-panels .panel {
+  border-right: none;
+  border-bottom: 1px solid #2a2b30;
 }
 
 .preview-pane {
@@ -267,6 +279,41 @@ button.danger {
   gap: 4px;
   font-size: 0.75rem;
   color: #8a8a90;
+}
+
+.generate-panel form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.generate-panel label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.75rem;
+  color: #8a8a90;
+}
+
+.generate-panel .checkbox-label {
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.status-ok {
+  color: #4ade80;
+  font-size: 0.75rem;
+}
+
+.generate-panel pre.error {
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+  background: #1d1e23;
+  padding: 8px;
+  border-radius: 6px;
 }
 
 .empty, .empty-state {

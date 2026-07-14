@@ -1,9 +1,14 @@
 import { createServer } from 'node:http';
 import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { spawn } from 'node:child_process';
 import { scaffoldProject, DEFAULT_PROJECTS_ROOT } from './scaffold.mjs';
 import { listProjects, addProject, findProject } from './registry.mjs';
+import { loadEnvFile } from '../../agent/env.mjs';
+import { generateScene } from '../../agent/generate-scene.mjs';
+
+loadEnvFile(fileURLToPath(new URL('../../agent/.env', import.meta.url)));
 
 const PORT = 4310;
 let nextPreviewPort = 4400;
@@ -113,6 +118,13 @@ const server = createServer(async (req, res) => {
         ? readdirSync(dir).filter((f) => f.endsWith('.ts')).map((f) => f.replace(/\.ts$/, ''))
         : [];
       return send(res, 200, scenes);
+    }
+
+    if (sub === 'scenes' && parts[4] === 'generate' && req.method === 'POST') {
+      const project = findProject(projectName);
+      const { sceneName, instruction, overwrite } = await readJsonBody(req);
+      const result = await generateScene({ projectPath: project.path, sceneName, instruction, overwrite });
+      return send(res, 200, result);
     }
 
     if (sub === 'preview' && parts[4] === 'start' && req.method === 'POST') {

@@ -14,6 +14,14 @@ export interface Timeline {
   clips: Clip[];
 }
 
+export interface GenerateResult {
+  success: boolean;
+  sceneName: string;
+  factoryName: string;
+  attempts: number;
+  errors?: string;
+}
+
 async function json<T>(res: Response): Promise<T> {
   if (!res.ok) {
     const body = await res.json().catch(() => ({}));
@@ -46,6 +54,13 @@ export const api = {
 
   listScenes: (project: string): Promise<string[]> =>
     fetch(`/api/projects/${encodeURIComponent(project)}/scenes`).then((r) => json(r)),
+
+  generateScene: (project: string, sceneName: string, instruction: string, overwrite = false): Promise<GenerateResult> =>
+    fetch(`/api/projects/${encodeURIComponent(project)}/scenes/generate`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ sceneName, instruction, overwrite }),
+    }).then((r) => json(r)),
 
   startPreview: (project: string): Promise<{ url: string }> =>
     fetch(`/api/projects/${encodeURIComponent(project)}/preview/start`, { method: 'POST' }).then((r) => json(r)),
