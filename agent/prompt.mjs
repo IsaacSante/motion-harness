@@ -53,12 +53,35 @@ ${ctx.exampleScene}
   riseFade();\` — never pass the bare function itself anywhere gsap expects an ease, a number,
   or a style value, that's a type error every time. \`floatDrift\`'s return shape is DIFFERENT
   from every other motif's (see its catalog entry above) — don't assume it matches the others.
+- This project's tsconfig has \`noUnusedLocals\`/\`noUnusedParameters\` enabled. The reference
+  scene above destructures \`enter({ overlay, width, height, transparentBg })\` because it happens
+  to use all four — don't copy that whole destructure by habit. Only destructure the \`enter()\`
+  fields and declare the loop/callback parameters (e.g. \`.forEach((text, i) => ...)\`) you
+  actually reference in the body; an unused one is a typecheck failure, not a warning.
 - Output ONLY the raw TypeScript source of the file. No markdown fences, no explanation,
   no commentary before or after the code.`;
 }
 
 export function buildRepairMessage(errors) {
   return `Typecheck failed. Fix the code so it typechecks cleanly. Compiler output:
+
+${errors}
+
+Output ONLY the corrected, complete TypeScript file — no explanation, no markdown fences.`;
+}
+
+// TS6133 ("declared but its value is never read") is the one failure mode
+// with a genuinely mechanical fix — delete the binding or prefix it with
+// `_` — yet the generic repair message above leaves the model to reason
+// that out from raw compiler output, which is exactly the case observed to
+// burn all MAX_ATTEMPTS without ever landing the fix. Naming the fix
+// directly removes that ambiguity.
+export function buildUnusedVarsRepairMessage(errors) {
+  return `Typecheck failed only on unused-variable/parameter errors (TS6133) — this project has
+\`noUnusedLocals\`/\`noUnusedParameters\` enabled. For each one below, either delete the unused
+declaration, or if it can't be removed without changing a signature, prefix its name with an
+underscore instead (e.g. \`i\` -> \`_i\`, or for a destructured field \`height\` -> \`height: _height\`).
+Don't change anything else about the file. Compiler output:
 
 ${errors}
 

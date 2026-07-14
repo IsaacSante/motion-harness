@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, writeFileSync } from 'node:fs';
 import { join } from 'node:path';
 import { execSync } from 'node:child_process';
 import { buildContext } from './context.mjs';
-import { buildSystemPrompt, buildRepairMessage, buildVisualRepairMessage, buildDesignRepairMessage, factoryNameFor } from './prompt.mjs';
+import { buildSystemPrompt, buildRepairMessage, buildUnusedVarsRepairMessage, buildVisualRepairMessage, buildDesignRepairMessage, factoryNameFor } from './prompt.mjs';
 import { extractCode } from './extract-code.mjs';
 import { registerScene } from './registry-patch.mjs';
 import { chatCompletion } from './cerebras.mjs';
@@ -17,6 +17,12 @@ const MAX_ATTEMPTS = 3;
 // so without this a scene could pass every existing check while still
 // looking arbitrary.
 const MAX_DESIGN_PASSES = 2;
+// TS6133 ("declared but its value is never read") is a mechanical fix — delete
+// or underscore-prefix the named binding, nothing else — so it gets its own
+// separate, more generous retry budget rather than sharing MAX_ATTEMPTS with
+// genuine logic/type errors. Observed in practice to otherwise burn the whole
+// general budget on what should be a one-line fix.
+const MAX_UNUSED_VAR_REPAIRS = 3;
 const DEFAULT_MODEL = 'gemma-4-31b'; // Cerebras preview model — eval-only, may change without notice.
 
 function runTypecheck(projectPath) {
@@ -186,6 +192,7 @@ export async function generateScene({
 
   let code = '';
   let attempts = 0;
+  let unusedVarRepairs = 0;
   let lastErrors = '';
   // Started lazily on the first typecheck pass and reused across repair
   // attempts within this one generateScene() call — one dev-server boot
@@ -230,6 +237,15 @@ export async function generateScene({
 
         if (ownBlocks.length > 0) {
           lastErrors = ownBlocks.map((b) => b.join('\n')).join('\n\n');
+          const isOnlyUnusedVars = ownBlocks.every((b) => /error TS6133:/.test(b[0]));
+
+          if (isOnlyUnusedVars && unusedVarRepairs < MAX_UNUSED_VAR_REPAIRS) {
+            unusedVarRepairs++;
+            attempts--; // mechanical fix — doesn't spend the general repair budget
+            messages.push({ role: 'user', content: buildUnusedVarsRepairMessage(lastErrors) });
+            continue;
+          }
+
           messages.push({ role: 'user', content: buildRepairMessage(lastErrors) });
           continue;
         }
