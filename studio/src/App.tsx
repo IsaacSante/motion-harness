@@ -4,6 +4,7 @@ import { ProjectList } from './components/ProjectList';
 import { Timeline } from './components/Timeline';
 import { Inspector } from './components/Inspector';
 import { GenerateScene } from './components/GenerateScene';
+import { ScaledPreview } from './components/ScaledPreview';
 
 const newClipId = () => `clip-${Math.random().toString(36).slice(2, 9)}`;
 
@@ -23,6 +24,9 @@ export function App() {
   }, []);
 
   const selectProject = async (name: string) => {
+    if (selectedProject && selectedProject !== name) {
+      api.stopPreview(selectedProject).catch(() => {});
+    }
     setSelectedProject(name);
     setSelectedClipId(null);
     setPreviewUrl(null);
@@ -30,6 +34,14 @@ export function App() {
     setTimeline(tl);
     setScenes(sceneNames);
     setDirty(false);
+
+    setPreviewLoading(true);
+    try {
+      const { url } = await api.startPreview(name);
+      setPreviewUrl(url);
+    } finally {
+      setPreviewLoading(false);
+    }
   };
 
   const createProject = async (name: string, targetDir?: string) => {
@@ -76,21 +88,13 @@ export function App() {
     setTimeout(() => setStatus(null), 1500);
   };
 
-  const startPreview = async () => {
-    if (!selectedProject) return;
-    setPreviewLoading(true);
-    try {
-      const { url } = await api.startPreview(selectedProject);
-      setPreviewUrl(url);
-    } finally {
-      setPreviewLoading(false);
-    }
-  };
-
-  const stopPreview = async () => {
-    if (!selectedProject) return;
-    await api.stopPreview(selectedProject);
-    setPreviewUrl(null);
+  const openFullscreen = () => {
+    // Not the raw project URL — that would let the new tab's arbitrary size
+    // drive the project's own layout, producing a different result than the
+    // embedded preview rather than a zoomed-in view of the same thing. This
+    // route re-renders the same fixed-resolution ScaledPreview, just filling
+    // the whole tab instead of a small panel.
+    if (previewUrl) window.open(`/?previewUrl=${encodeURIComponent(previewUrl)}`, '_blank');
   };
 
   const selectedClip = timeline?.clips.find((c) => c.id === selectedClipId) ?? null;
@@ -112,13 +116,9 @@ export function App() {
               <div className="toolbar-actions">
                 {status && <span className="status">{status}</span>}
                 <button onClick={save} disabled={!dirty}>Save{dirty ? '*' : ''}</button>
-                {previewUrl ? (
-                  <button onClick={stopPreview}>Stop preview</button>
-                ) : (
-                  <button onClick={startPreview} disabled={previewLoading}>
-                    {previewLoading ? 'Starting…' : 'Preview'}
-                  </button>
-                )}
+                <button onClick={openFullscreen} disabled={!previewUrl}>
+                  {previewLoading && !previewUrl ? 'Starting…' : 'Open fullscreen'}
+                </button>
               </div>
             </div>
 
@@ -133,9 +133,9 @@ export function App() {
             <div className="workspace">
               <div className="preview-pane">
                 {previewUrl ? (
-                  <iframe key={previewUrl} src={previewUrl} title="preview" />
+                  <ScaledPreview url={previewUrl} />
                 ) : (
-                  <div className="empty">Click Preview to run this project</div>
+                  <div className="empty">{previewLoading ? 'Starting preview…' : 'Preview unavailable'}</div>
                 )}
               </div>
               <div className="side-panels">
