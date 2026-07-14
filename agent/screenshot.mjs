@@ -93,17 +93,17 @@ export async function judgeScreenshot({ apiKey, model, instruction, sceneName, s
       content: [
         {
           type: 'text',
-          text: `This is a screenshot of a generated motion-graphics scene called "${sceneName}", captured ~${SETTLE_MS}ms after it started, rendered at ${CANONICAL_WIDTH}x${CANONICAL_HEIGHT}. It was generated from this instruction:
+          text: `This is a stacked composite of 3 screenshots of the same generated motion-graphics scene called "${sceneName}", each labeled with its timecode (${FRAME_LABELS.join(', ')} after it started), rendered at ${CANONICAL_WIDTH}x${CANONICAL_HEIGHT}. Together they show how it evolves over its first 10 seconds. It was generated from this instruction:
 
 "${instruction}"
 
 Judge it for two things only:
-1. Is everything visible fully inside the ${CANONICAL_WIDTH}x${CANONICAL_HEIGHT} frame — nothing cut off or rendered off-screen?
+1. Is everything visible fully inside the frame at some point across the 3 frames — nothing permanently cut off or stuck off-screen the whole time?
 2. Does it roughly match what the instruction asked for?
 
-Some scenes have a deliberately slow-building intro (e.g. a scrolling crawl that starts below the frame and takes many seconds to scroll into view) — partial content, content still visibly mid-transition, or empty space that's clearly being animated into is NOT an issue by itself. Only flag ISSUE for things that look permanently wrong: content stuck off-screen with no sign it's moving toward the frame, elements cut off at an edge, or a result that contradicts the instruction (wrong subject, wrong layout entirely).
+Some scenes have a deliberately slow-building intro (e.g. a scrolling crawl that starts below the frame and takes many seconds to scroll into view) — that's exactly why you're shown progress over time instead of one instant. If the frames show things moving toward/into the frame (comparing t=1s to t=5s to t=10s), that's working as intended, not an issue. Only flag ISSUE if, across all 3 frames, something looks permanently wrong: content stuck in the same broken position with no movement toward the frame, elements cut off at an edge in every frame, or a result that contradicts the instruction (wrong subject, wrong layout entirely).
 
-Reply with a first line that is EXACTLY "OK" or "ISSUE" and nothing else on that line. If ISSUE, follow with 1-3 short sentences explaining what's wrong, specific enough that a developer could fix it (e.g. "the title text is rendered ~700px to the right of the visible frame, mostly off-screen").`,
+Reply with a first line that is EXACTLY "OK" or "ISSUE" and nothing else on that line. If ISSUE, follow with 1-3 short sentences explaining what's wrong, specific enough that a developer could fix it (e.g. "the title text is rendered ~700px to the right of the visible frame in all 3 frames, mostly off-screen").`,
         },
         { type: 'image_url', image_url: { url: `data:image/png;base64,${screenshotBase64}` } },
       ],
@@ -128,11 +128,11 @@ export async function judgeDesignQuality({ apiKey, model, instruction, sceneName
       content: [
         {
           type: 'text',
-          text: `This is a screenshot of a generated motion-graphics scene called "${sceneName}", captured ~${SETTLE_MS}ms after it started, rendered at ${CANONICAL_WIDTH}x${CANONICAL_HEIGHT}. It was generated from this instruction:
+          text: `This is a stacked composite of 3 screenshots of the same generated motion-graphics scene called "${sceneName}", each labeled with its timecode (${FRAME_LABELS.join(', ')} after it started), rendered at ${CANONICAL_WIDTH}x${CANONICAL_HEIGHT}. It was generated from this instruction:
 
 "${instruction}"
 
-It's already confirmed correct — nothing is off-screen and it matches the instruction. Now judge it purely on design quality: spacing and breathing room, alignment, visual balance, whether sizes and gaps feel intentional rather than arbitrary. Be a demanding designer, not a lenient one — "technically fine" is not the bar.
+It's already confirmed correct — nothing is permanently off-screen and it matches the instruction. Now judge it purely on design quality, mainly using whichever frame(s) show the composition settled (later frames, unless the scene is still transitioning at t=10s too): spacing and breathing room, alignment, visual balance, whether sizes and gaps feel intentional rather than arbitrary. Be a demanding designer, not a lenient one — "technically fine" is not the bar.
 
 Reply with a first line that is EXACTLY "DESIGN_OK" or "DESIGN_ISSUE" and nothing else on that line. If DESIGN_ISSUE, follow with 1-3 short, specific, actionable sentences (e.g. "the subtitle sits flush against the title with no gap — add breathing room between them" or "the element is off-center relative to the frame — recenter it").`,
         },
