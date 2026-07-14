@@ -95,6 +95,21 @@ export function App() {
     setTimeout(() => setStatus(null), 1500);
   };
 
+  const deleteProject = async () => {
+    if (!selectedProject) return;
+    if (!window.confirm(`Delete project "${selectedProject}"? This permanently deletes its files on disk — this can't be undone.`)) {
+      return;
+    }
+    const updated = await api.deleteProject(selectedProject);
+    setProjects(updated);
+    setSelectedProject(null);
+    setTimeline(null);
+    setScenes([]);
+    setSelectedClipId(null);
+    setPreviewUrl(null);
+    setDirty(false);
+  };
+
   const openFullscreen = () => {
     // Not the raw project URL — that would let the new tab's arbitrary size
     // drive the project's own layout, producing a different result than the
@@ -132,6 +147,9 @@ export function App() {
                 </button>
                 <button onClick={openFullscreen} disabled={!previewUrl}>
                   {previewLoading && !previewUrl ? 'Starting…' : 'Open fullscreen'}
+                </button>
+                <button className="danger" onClick={deleteProject}>
+                  Delete project
                 </button>
               </div>
             </div>

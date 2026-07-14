@@ -43,6 +43,9 @@ export const api = {
       body: JSON.stringify({ name, targetDir }),
     }).then((r) => json(r)),
 
+  deleteProject: (name: string): Promise<Project[]> =>
+    fetch(`/api/projects/${encodeURIComponent(name)}`, { method: 'DELETE' }).then((r) => json(r)),
+
   getTimeline: (project: string): Promise<Timeline> =>
     fetch(`/api/projects/${encodeURIComponent(project)}/timeline`).then((r) => json(r)),
 

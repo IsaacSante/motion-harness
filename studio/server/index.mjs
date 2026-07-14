@@ -1,9 +1,9 @@
 import { createServer } from 'node:http';
-import { readFileSync, writeFileSync, readdirSync, existsSync } from 'node:fs';
+import { readFileSync, writeFileSync, readdirSync, existsSync, rmSync } from 'node:fs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { scaffoldProject, DEFAULT_PROJECTS_ROOT } from './scaffold.mjs';
-import { listProjects, addProject, findProject } from './registry.mjs';
+import { listProjects, addProject, findProject, removeProject } from './registry.mjs';
 import { loadEnvFile } from '../../agent/env.mjs';
 import { generateScene } from '../../agent/generate-scene.mjs';
 import { startDevServerOnAvailablePort, stopDevServer } from '../../scripts/lib/dev-server.mjs';
@@ -83,6 +83,14 @@ const server = createServer(async (req, res) => {
 
     const projectName = decodeURIComponent(parts[2]);
     const sub = parts[3];
+
+    if (parts.length === 3 && req.method === 'DELETE') {
+      const project = findProject(projectName);
+      stopPreview(projectName);
+      rmSync(project.path, { recursive: true, force: true });
+      const projects = removeProject(projectName);
+      return send(res, 200, projects);
+    }
 
     if (sub === 'timeline' && req.method === 'GET') {
       const project = findProject(projectName);

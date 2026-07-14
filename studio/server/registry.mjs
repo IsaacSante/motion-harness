@@ -23,3 +23,9 @@ export function findProject(name) {
   if (!project) throw new Error(`unknown project: ${name}`);
   return project;
 }
+
+export function removeProject(name) {
+  const projects = listProjects().filter((p) => p.name !== name);
+  writeFileSync(REGISTRY_PATH, JSON.stringify(projects, null, 2) + '\n');
+  return projects;
+}
